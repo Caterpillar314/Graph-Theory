@@ -1,0 +1,8 @@
+Update :
+
+1. J'ai utilisé tkinter pour l'affichage parce que j'avais pas pylab sur mon ordi et la flemme de le télécharger, et tkinter est de base avec IDLE...
+2. J'ai modifié la structure de Graph : je savais pas trop pourquoi il y avait une liste Adjacence du coup je l'ai passé dans Vertex
+    Du coup les Vertex se retrouve avec un attribut adjacence et un attribut chemin pour plus tard.
+3. J'ai implémenté les affichages des Edges et de l'affichage, la verification de la connexité et la génération d'un cycle lorsque ça existe
+4. Pour des tests rapides, j'ai fait un rapide main qui permet de voir plus ou moins si ça marche.
+    Remarque : déjà à partir de 50 vertices, tu commences à plus voir grand chose... Pour des trucs à peu près concluants, je me suis mis vers 40 vertices et une proba d'Edge de 0.25 à peu près...
