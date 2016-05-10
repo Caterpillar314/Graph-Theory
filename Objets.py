@@ -5,7 +5,7 @@ from tkinter import *
 
 
 ###############################################################################################################
-# Tkinter (module préinstallé en python assez simple d'utilisation)
+# Tkinter
 haut, larg = 900, 900
 
 fenetre = Tk()
