@@ -122,7 +122,7 @@ class Graph():
 ###############################################################################################################
 # Main
 
-def createGraph(n = 100, p = 0.5):
+def createGraph(n = 50, p = 0.25):
     """Retourne un graphe aléatoire de n vertex avec une probabilité d'edge p"""
 
     graph = Graph(p)
