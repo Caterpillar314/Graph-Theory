@@ -105,7 +105,7 @@ class Graph():
 
 
     def findCycle(self, debut = 0):
-        """Retourne un cycle dans le graphe"""        
+        """Retourne un cycle dans le graphe"""
         for v in self.listeSommets:
             v.chemin = []
             
@@ -115,7 +115,7 @@ class Graph():
             vertex = liste.pop(0)
             checked.add(vertex.id)
             for w in vertex.adjacence:
-                if w not in checked:
+                if w not in checked and vertex.edges[vertex.adjacence.index(w)]:
                     v = self.listeSommets[w]
                     if v.chemin != []:
                         return v.chemin + [v.id, vertex.id] + vertex.chemin[::-1]
@@ -137,31 +137,25 @@ class Graph():
         # Cas initial :
         # si tous les edges partant de vertex ont déjà été utilisés dans le tour, on retourne rien
         if True not in self.listeSommets[vertex].edges:
-            print("Une feuille !")
-            print(vertex)
-            print(self.listeSommets[vertex].edges)
             return [vertex]
 
         # Récurrence :
         # On trouve un cycle
         cycle = self.findCycle(vertex)
-        print("Vertex :", vertex)
-        print("Cycle : ", cycle)
-        print()
 
         # On met à jour les vertex utilisés dans le cycle :
         for i in range(len(cycle)-1):
             v = self.listeSommets[cycle[i]]
-            print("Voisin : ", v)
             index =  v.adjacence.index(cycle[i+1])                  # Index d'apparition du vertex \cycle[i+1]\ dans la table d'adjacence
             v.edges[index] = False
-            print("Voisin.edge apres maj : ", v.edges)
-            
+            v = self.listeSommets[cycle[i+1]]
+            index = v.adjacence.index(cycle[i])
+            v.edges[index] = False            
 
         # Pour chaque sommets de ce cycle, on va trouver un nouveau cycle
         tour = []
-        for i in range(len(cycle)-1):
-            tour.append(self.findEulerianTourAux(cycle[i]))
+        for i in range(0, len(cycle)):
+            tour.extend(self.findEulerianTourAux(cycle[i]))
 
         return tour
         
@@ -188,12 +182,15 @@ def makeEulerian(graph):
 
     wrongVertices = [vertex for vertex in graph.listeSommets if vertex.getDegre()%2 == 1 or vertex.getDegre() == 0]
     while wrongVertices != []:
+        print("Wrong : ", wrongVertices)
         vertex = wrongVertices.pop(0)
         choix = list(filter(lambda v:v.id not in vertex.adjacence, wrongVertices))
         if choix != []:
             voisin = choice(choix)
         else:
-            voisin = choice(list(filter(lambda v:v.id not in vertex.adjacence and v.id != vertex.id, graph.listeSommets)))
+            choix = list(filter(lambda v:v.id not in vertex.adjacence and v.id != vertex.id, graph.listeSommets))
+            print(choix)
+            voisin = choice(choix)
             wrongVertices.append(voisin)
         graph.addEdge(vertex.id, voisin.id, True)
         if voisin.getDegre() != 1 and choix != []:
@@ -208,10 +205,12 @@ def affiche(graph):
     graph.drawGraph()
 
 
-g = createGraph(50, 0.5)
+g = createGraph(10, 0.5)
 print(sum([v.getDegre() for v in g.listeSommets]))
 print("The graph is connex : ", g.isConnex())
 print("The graph has an Eulerian tour : ", g.existeTour())
+for v in g.listeSommets:
+    print str(v) + " : " + ", ".join(map(str, v.adjacence))
 makeEulerian(g)
 print("After modification , the graph has an Eulerian tour : ", g.existeTour())
 for v in g.listeSommets:
