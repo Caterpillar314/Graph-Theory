@@ -54,6 +54,8 @@ class Graph():
         self.taille = 0
         self.listeSommets = []
         self.probaEdge = probaEdge
+        
+        self.debug = []
                 
     def __str__(self):
         return "Je suis un graphe à " + str(self.taille) + " sommets."
@@ -105,7 +107,8 @@ class Graph():
 
 
     def findCycle(self, debut = 0):
-        """Retourne un cycle dans le graphe"""
+        """Retourne un cycle dans le graphe a partir du vertex #debut"""
+        
         for v in self.listeSommets:
             v.chemin = []
             
@@ -115,7 +118,8 @@ class Graph():
             vertex = liste.pop(0)
             checked.add(vertex.id)
             for w in vertex.adjacence:
-                if w not in checked and vertex.edges[vertex.adjacence.index(w)]:
+                if w not in checked and vertex.edges[vertex.adjacence.index(w)] and \
+                (len(vertex.chemin) <= 1 or len(self.listeSommets[w].chemin) <= 1 or self.listeSommets[w].chemin[1] != vertex.chemin[1]):
                     v = self.listeSommets[w]
                     if v.chemin != []:
                         return v.chemin + [v.id, vertex.id] + vertex.chemin[::-1]
@@ -148,6 +152,7 @@ class Graph():
             v = self.listeSommets[cycle[i]]
             index =  v.adjacence.index(cycle[i+1])                  # Index d'apparition du vertex \cycle[i+1]\ dans la table d'adjacence
             v.edges[index] = False
+            self.debug.append((v.id, index))
             v = self.listeSommets[cycle[i+1]]
             index = v.adjacence.index(cycle[i])
             v.edges[index] = False            
@@ -180,21 +185,65 @@ def createGraph(n = 50, p = 0.25):
 def makeEulerian(graph):
     """Ajoute des edges à un graphe jusqu'à ce que celui ci contienne un tour d'Euler"""
 
+    # Gere les vertices de degre n-1
+    complet = [vertex for vertex in graph.listeSommets if vertex.getDegre() == graph.taille-1]
+    for vertex in complet:
+        # Choisis en priorité les voisins de degré impair
+        index = sorted(vertex.adjacence, key = lambda v:graph.listeSommets[v].getDegre()%2 == 0)[0]
+        indVoisin = vertex.adjacence.index(index)
+        vertex.adjacence.pop(indVoisin)
+        vertex.edges.pop(indVoisin)
+        indVertex = graph.listeSommets[index].adjacence.index(vertex.id)
+        graph.listeSommets[index].adjacence.pop(indVertex)
+        graph.listeSommets[index].edges.pop(indVertex)
+
+    # Gere les vertices de degre impair
     wrongVertices = [vertex for vertex in graph.listeSommets if vertex.getDegre()%2 == 1 or vertex.getDegre() == 0]
+    wrongVertices.sort(key = lambda vertex:len([1 for v in vertex.adjacence if v in wrongVertices]))
     while wrongVertices != []:
-        print("Wrong : ", wrongVertices)
+        print("Wrong :", wrongVertices)
+        print("Real wrong :", [vertex for vertex in graph.listeSommets if vertex.getDegre()%2 == 1 or vertex.getDegre() == 0])
         vertex = wrongVertices.pop(0)
+        # Filtre les vertices possibles pour faire un lien avec le vertex actuel
         choix = list(filter(lambda v:v.id not in vertex.adjacence, wrongVertices))
+        
+        # Si on peut faire un lien avec un vertex de degré impair ou de degré nul:
         if choix != []:
-            voisin = choice(choix)
+            voisin = choix[0]
+            if vertex.getDegre()%2 == 0:
+				wrongVertices.remove(voisin)
+            graph.addEdge(vertex.id, voisin.id, True)
         else:
-            choix = list(filter(lambda v:v.id not in vertex.adjacence and v.id != vertex.id, graph.listeSommets))
-            print(choix)
-            voisin = choice(choix)
-            wrongVertices.append(voisin)
-        graph.addEdge(vertex.id, voisin.id, True)
-        if voisin.getDegre() != 1 and choix != []:
-            wrongVertices.remove(voisin)
+            # Si aucun vertex ne peut être lié avec le vertex actuel, on en choisit un de degré pair
+            # que l'on rajoute dans la liste des vertices de degré impair
+            choix = list(filter(lambda v:v.id not in vertex.adjacence and v.id != vertex.id and v.getDegre() < graph.taille-3, graph.listeSommets))
+            
+            # Si vraiment aucun vertex ne peut être lié, alors on enlève un vertex, en priorité sur les voisins de degré impair
+            if choix == []:
+				print("Adj vertex :", vertex.adjacence)
+				index = sorted(vertex.adjacence, key = lambda v:graph.listeSommets[v].getDegre()%2 == 0)[0]
+				indVoisin = vertex.adjacence.index(index)
+				vertex.adjacence.pop(indVoisin)
+				vertex.edges.pop(indVoisin)
+				indVertex = graph.listeSommets[index].adjacence.index(vertex.id)
+				print("Vertex : ", vertex.id)
+				print("Voisin : ", indVoisin)
+				print("Degre avant : ", graph.listeSommets[index].getDegre())
+				print("Dans wrong ? ", graph.listeSommets[index] in wrongVertices)
+				graph.listeSommets[index].adjacence.pop(indVertex)
+				graph.listeSommets[index].edges.pop(indVertex)
+				print("Degre apres : ", graph.listeSommets[index].getDegre())
+				
+				# Si le voisin avait un degré impair, il a maintenant un degré pair:
+				# on l'enlève donc de la liste wrongVertices
+				if graph.listeSommets[index].getDegre()%2 == 0:
+					wrongVertices.remove(graph.listeSommets[index])
+
+            else:
+                voisin = choix[0]
+                wrongVertices.append(voisin)
+                graph.addEdge(vertex.id, voisin.id, True)
+		
         if vertex.getDegre() == 1:
             wrongVertices.append(vertex)
 
@@ -205,14 +254,18 @@ def affiche(graph):
     graph.drawGraph()
 
 
-g = createGraph(10, 0.5)
-print(sum([v.getDegre() for v in g.listeSommets]))
+g = createGraph(100, 0.99)
+#print(sum([v.getDegre() 
 print("The graph is connex : ", g.isConnex())
 print("The graph has an Eulerian tour : ", g.existeTour())
-for v in g.listeSommets:
-    print str(v) + " : " + ", ".join(map(str, v.adjacence))
-makeEulerian(g)
+#for v in g.listeSommets:
+#    print str(v) + " : " + ", ".join(map(str, v.adjacence))
+if not g.existeTour():
+    makeEulerian(g)
 print("After modification , the graph has an Eulerian tour : ", g.existeTour())
 for v in g.listeSommets:
     print str(v) + " : " + ", ".join(map(str, v.adjacence))
-print(g.findEulerianTour())
+chemin = g.findEulerianTour()
+print(chemin)
+print("Taille du chemin : ", len(chemin))
+print("Nombre de edges :", sum([v.getDegre() for v in g.listeSommets])/2)
