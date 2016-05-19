@@ -5,161 +5,196 @@ from tkinter import *
 
 ###############################################################################################################
 # Tkinter
-haut, larg = 900, 900
+haut, larg = 600, 900
 
 edges = dict()
 fenetre = Tk()
 
 ###############################################################################################################
-# Classes principales
+# Main classes
 
-class Vertex():
+class Vertex:
+    """Representation of a vertex by its ID, its coords on the circle and its adjacency list.
+         The attributes edges and way are used during the function to find an Euler tour"""
+    
     
     def __init__(self, idNumb):
         self.id = idNumb
         self.coordX = 0
         self.coordY = 0
-        self.adjacence = []
+        self.adjacency = []
         self.edges = []
-        self.chemin = []
+        self.way = []
+    
         
     def __str__(self):
         return str(self.id)
+
 
     def __repr__(self):
         return str(self.id)
-        #return "Je suis le sommet {0}, situé aux coordonnées ({1}, {2})".format(str(self.id), str(self.coordX), str(self.coordY))
+
 
     def __int__(self):
         return int(self.id)
+
         
-    def getCoord(self, tailleGraph):
-        """Mets à jour les coordonnés du vertex en vu de l'affichage"""
-        z = (haut/2-50)*e**(pi*2j*self.id/tailleGraph)
+    def getCoord(self, sizeGraph):
+        """Update the coords of the vertex for the display."""
+
+        z = (haut/2-50)*e**(pi*2j*self.id/sizeGraph)
         self.coordX = larg/2+z.real
         self.coordY = haut/2+z.imag
 
-    def getDegre(self):
-        """Retourne le degré du vertex"""
-        return len(self.adjacence)
+
+    def getDegree(self):
+
+        """Returns the degree of the vertex"""
+        return len(self.adjacency)
 
 
 
-class Graph():
-    
+
+class Graph:
+    """Representation of a graph by its size, its list of vertices and the probability for each edge to exist"""
+	
     def __init__(self, probaEdge):
-        self.taille = 0
-        self.listeSommets = []
-        self.probaEdge = probaEdge
-        
-        self.debug = []
-                
-    def __str__(self):
-        return "Je suis un graphe à " + str(self.taille) + " sommets."
+        self.size = 0
+        self.verticesList = []
+
         
     def addVertex(self, n = 1):
-        """Ajoute n vertices au graph"""
+        """Add n vertices to the graph"""
+        
         for i in range(n):
-            self.listeSommets.append(Vertex(i))
-        self.taille += n
+            self.verticesList.append(Vertex(i))
+        self.size += n
+
 
     def drawGraph(self):
+        """Draws the graph in a canvas, each vertex being on a circle sorted by its id"""
         global edges
         
-        for v in self.listeSommets :
-            v.getCoord(self.taille)
+        canvas.delete("all")        
+        for v in self.verticesList :
+            v.getCoord(self.size)
             canvas.create_oval(v.coordX-5, v.coordY-5, v.coordX+5, v.coordY+5, fill = "blue")
-            z = (haut/2-35)*e**(pi*2j*v.id/self.taille)
+            z = (haut/2-35)*e**(pi*2j*v.id/self.size)
             x, y = larg/2+z.real, haut/2+z.imag
             canvas.create_text(x, y, text = str(v))
 
         edges = dict()
-        for v in self.listeSommets:
-            for idNumb in v.adjacence:
+        for v in self.verticesList:
+            for idNumb in v.adjacency:
                 if idNumb > v.id:
-                    edges[str(v.id)+" "+str(idNumb)] = canvas.create_line(v.coordX, v.coordY, self.listeSommets[idNumb].coordX, self.listeSommets[idNumb].coordY, fill = "red")
+                    edges[str(v.id)+" "+str(idNumb)] = canvas.create_line(v.coordX, v.coordY, self.verticesList[idNumb].coordX, self.verticesList[idNumb].coordY, fill = "red")
 
-    def addEdge(self, i, j, sure = False):
-        """Ajoute un edge entre les sommets i et j avec la probabilité probaEdge"""
-        if random() < self.probaEdge or sure:
-            self.listeSommets[i].adjacence.append(j)
-            self.listeSommets[i].edges.append(True)
-            self.listeSommets[j].adjacence.append(i)
-            self.listeSommets[j].edges.append(True)
 
-    def isConnex(self):
-        """Retourne si le graphe est connexe ou non"""
+    def addEdge(self, i, j):
+        """Adds an edge between the vertices i and j"""
         
-        if not all([vertex.getDegre() != 0 for vertex in self.listeSommets]):
+        self.verticesList[i].adjacency.append(j)
+        self.verticesList[i].edges.append(True)
+        self.verticesList[j].adjacency.append(i)
+        self.verticesList[j].edges.append(True)
+
+
+    def isConnected(self):
+        """Returns whether the graph is connected or not"""
+        
+        # If there's a vertex of degree 0, the graph can't be connected
+        if not all([vertex.getDegree() != 0 for vertex in self.verticesList]):
             return False
         
         checked = set()
-        liste = [self.listeSommets[0]]
-        while len(liste) != 0 and len(checked) < self.taille:
-            vertex = liste.pop(0)
+        vertexToAnalyze = [self.verticesList[0]]
+        while len(vertexToAnalyze) != 0 and len(checked) < self.size:
+			
+			# Analyze the next vertex and tag it checked
+            vertex = vertexToAnalyze.pop(0)
             checked.add(vertex.id)
-            for v in vertex.adjacence:
-                if v not in checked and self.listeSommets[v] not in liste:
-                    liste.append(self.listeSommets[v])
-        return self.taille == len(checked)
-
-    def existeTour(self):
-        """Retourne s'il existe un tour d'Euler dans le graphe"""
-        return self.isConnex() and all([vertex.getDegre()%2 == 0 for vertex in self.listeSommets])
-
-
-    def findCycle(self, debut = 0):
-        """Retourne un cycle dans le graphe a partir du vertex #debut"""
+            
+            # For each neighbor of vertex, if this neighbor hasn't been checked and is not to be
+            # then add this neighbor to the list of vertex to analyze
+            for v in vertex.adjacency:
+                if v not in checked and self.verticesList[v] not in vertexToAnalyze:
+                    vertexToAnalyze.append(self.verticesList[v])
         
-        for v in self.listeSommets:
-            v.chemin = []
+        # If n vertices has been analyzed, then the graph is connected
+        return self.size == len(checked)
+
+
+    def existsTour(self):
+        """Returns whether the graph is Eulerian or not"""
+        return self.isConnected() and all([vertex.getDegree()%2 == 0 for vertex in self.verticesList])
+
+
+    def findCycle(self, begin = 0):
+        """Returns a cycle in the graph from the vertex #begin"""
+
+		# Resets the attribute way of each vertex
+        for v in self.verticesList:
+            v.way = []
             
         checked = set()
-        liste = [self.listeSommets[debut]]
-        for n in range(self.taille+5):
-            vertex = liste.pop(0)
+        vertexToAnalyze = [self.verticesList[begin]]
+        for n in range(self.size+5):
+			
+			# Analyze the next vertex and tag it checked
+            vertex = vertexToAnalyze.pop(0)
             checked.add(vertex.id)
-            for w in vertex.adjacence:
-                if w not in checked and vertex.edges[vertex.adjacence.index(w)] and \
-                (len(vertex.chemin) <= 1 or len(self.listeSommets[w].chemin) <= 1 or self.listeSommets[w].chemin[1] != vertex.chemin[1]):
-                    v = self.listeSommets[w]
-                    if v.chemin != []:
-                        return v.chemin + [v.id, vertex.id] + vertex.chemin[::-1]
+            
+            # For each neighbor of Vertex, if :
+            # - this neighbor hasn't been checked 
+            # - the edge from Vertex to this neighbor hasn't been already used during the Eulerian tour
+            # - Vertex and the neigbor are on two different branches of the course made until here,
+			#		ie. the first vertex of their way are differents
+			# Then if this neighbor already has been visited it means a cycle has been found : we return this cycle from the neighbor's way
+			# Else, update the neighbor's way and add this neighbor to the list of vertex to analyze
+            for w in vertex.adjacency:
+                if w not in checked and vertex.edges[vertex.adjacency.index(w)] and \
+                (len(vertex.way) <= 1 or len(self.verticesList[w].way) <= 1 or self.verticesList[w].way[1] != vertex.way[1]):
+                    v = self.verticesList[w]
+                    if v.way != []:
+                        return v.way + [v.id, vertex.id] + vertex.way[::-1]
                     else:
-                        v.chemin = vertex.chemin + [vertex.id]
-                    liste.append(v)
+                        v.way = vertex.way + [vertex.id]
+                    vertexToAnalyze.append(v)
+
 
     def findEulerianTour(self):
+        """Returns an Eulerian tour in the graph by calling the recursive function"""
 
-        if not self.existeTour():
-            return "Il n'y a pas de tour d'Euler possible dans ce graphe"
+        if not self.existsTour():
+            return "There's no Eulerian tour in this graph"
 
         else:
             return self.findEulerianTourAux(0)
 
-    def findEulerianTourAux(self, vertex):
-        """Retourne un tour d'Euler dans le graphe"""
 
-        # Cas initial :
-        # si tous les edges partant de vertex ont déjà été utilisés dans le tour, on retourne rien
-        if True not in self.listeSommets[vertex].edges:
+    def findEulerianTourAux(self, vertex):
+        """Recursive function to find an Eulerian tour, based on the demonstration of Euler's theorem"""
+
+        # Base case :
+        # if every edge from Vertex has been used in the tour, just returns vertex's id
+        if True not in self.verticesList[vertex].edges:
             return [vertex]
 
-        # Récurrence :
-        # On trouve un cycle
+        # Recursion :
+        # Find a cycle from vertex
         cycle = self.findCycle(vertex)
 
-        # On met à jour les vertex utilisés dans le cycle :
+		# Update the edges used in this cycle : they are now tagged as used
         for i in range(len(cycle)-1):
-            v = self.listeSommets[cycle[i]]
-            index =  v.adjacence.index(cycle[i+1])                  # Index d'apparition du vertex \cycle[i+1]\ dans la table d'adjacence
+            v = self.verticesList[cycle[i]]
+            index =  v.adjacency.index(cycle[i+1])                  # Index of the vertex \cycle[i+1]\ in the adjacency list of the vertex \cycle[i]\
             v.edges[index] = False
-            self.debug.append((v.id, index))
-            v = self.listeSommets[cycle[i+1]]
-            index = v.adjacence.index(cycle[i])
+            
+            v = self.verticesList[cycle[i+1]]
+            index = v.adjacency.index(cycle[i])
             v.edges[index] = False            
 
-        # Pour chaque sommets de ce cycle, on va trouver un nouveau cycle
+		# For each vertex of this cycle, find another cycle from this vertex
         tour = []
         for i in range(0, len(cycle)):
             tour.extend(self.findEulerianTourAux(cycle[i]))
@@ -174,94 +209,116 @@ class Graph():
 # Main
 
 def createGraph(n = 50, p = 0.25):
-    """Retourne un graphe aléatoire de n vertex avec une probabilité d'edge p"""
+    """Returns a random graph of n vertices with an edge probability of p"""
 
     graph = Graph(p)
     graph.addVertex(n)
     for i in range(n):
         for j in range(i+1, n):
-            graph.addEdge(i, j)
+            if random() < p:
+                graph.addEdge(i, j)
     return graph
 
 
 def makeEulerian(graph):
-    """Ajoute des edges à un graphe jusqu'à ce que celui ci contienne un tour d'Euler"""
+    """Add edges to graph until it gets Eulerian"""
 
-    # Gere les vertices de degre n-1
-    complet = [vertex for vertex in graph.listeSommets if vertex.getDegre() == graph.taille-1]
-    for vertex in complet:
-        # Choisis en priorité les voisins de degré impair
-        index = sorted(vertex.adjacence, key = lambda v:graph.listeSommets[v].getDegre()%2 == 0)[0]
-        indVoisin = vertex.adjacence.index(index)
-        vertex.adjacence.pop(indVoisin)
-        vertex.edges.pop(indVoisin)
-        indVertex = graph.listeSommets[index].adjacence.index(vertex.id)
-        graph.listeSommets[index].adjacence.pop(indVertex)
-        graph.listeSommets[index].edges.pop(indVertex)
+    if graph.size <= 2:
+        print("This graph is too small to be Eulerian !")
 
-    # Gere les vertices de degre impair
-    wrongVertices = [vertex for vertex in graph.listeSommets if vertex.getDegre()%2 == 1 or vertex.getDegre() == 0]
-    wrongVertices.sort(key = lambda vertex:len([1 for v in vertex.adjacence if v in wrongVertices]))
-    while wrongVertices != []:
-        vertex = wrongVertices.pop(0)
-        # Filtre les vertices possibles pour faire un lien avec le vertex actuel
-        choix = list(filter(lambda v:v.id not in vertex.adjacence, wrongVertices))
+    # Manage the vertices of degree n-1 by removing edges from these vertices
+    complete = [vertex for vertex in graph.verticesList if vertex.getDegree() == graph.size-1]
+    for vertex in complete:
+        # Choose in priority neighbors of odd degree
+        index = sorted(vertex.adjacency, key = lambda v:graph.verticesList[v].getDegree()%2 == 0)[0]
+        indNeighbor = vertex.adjacency.index(index)
+        indVertex = graph.verticesList[index].adjacency.index(vertex.id)        
         
-        # Si on peut faire un lien avec un vertex de degré impair ou de degré nul:
-        if choix != []:
-            voisin = choix[0]
-            graph.addEdge(vertex.id, voisin.id, True)
-            if voisin.getDegre() != 1:
-                wrongVertices.remove(voisin)
-        else:
-            # Si aucun vertex ne peut être lié avec le vertex actuel, on en choisit un de degré pair
-            # que l'on rajoute dans la liste des vertices de degré impair
-            choix = list(filter(lambda v:v.id not in vertex.adjacence and v.id != vertex.id and v.getDegre() < graph.taille-3, graph.listeSommets))
-            
-            # Si vraiment aucun vertex ne peut être lié, alors on enlève un vertex, en priorité sur les voisins de degré impair
-            if choix == []:
-                index = sorted(vertex.adjacence, key = lambda v:graph.listeSommets[v].getDegre()%2 == 0)[0]
-                indVoisin = vertex.adjacence.index(index)
-                vertex.adjacence.pop(indVoisin)
-                vertex.edges.pop(indVoisin)
-                indVertex = graph.listeSommets[index].adjacence.index(vertex.id)
-                graph.listeSommets[index].adjacence.pop(indVertex)
-                graph.listeSommets[index].edges.pop(indVertex)
+        # Remove the neighbor from the adjacency list of vertex
+        vertex.adjacency.pop(indNeighbor)
+        vertex.edges.pop(indNeighbor) 
+
+        # Remove Vertex from the adjacency list of the neighbor
+        graph.verticesList[index].adjacency.pop(indVertex)
+        graph.verticesList[index].edges.pop(indVertex)
+
+
+    # Manage the vertices of odd degree (and the vertices of degree 0)
+    oddDegreeVertices = [vertex for vertex in graph.verticesList if vertex.getDegree()%2 == 1 or vertex.getDegree() == 0]
+    oddDegreeVertices.sort(key = lambda vertex:len([1 for v in vertex.adjacency if v in oddDegreeVertices]))
+    
+    while oddDegreeVertices != []:
+        vertex = oddDegreeVertices.pop(0)
+        
+        # Filter the possibles vertices to link with Vertex (ie. the vertices not already linked with Vertex, and with an odd or a null degree)
+        possiblesVertices = list(filter(lambda v:v.id not in vertex.adjacency, oddDegreeVertices))
+        
+        # If there is such a vertex, create an edge between Vertex and this neighbor and remove it from oddDegreeVertices (unless it had a null degree)
+        if possiblesVertices != []:
+            neighbor = possiblesVertices[0]
+            graph.addEdge(vertex.id, neighbor.id)
+            if neighbor.getDegree() != 1:
+                oddDegreeVertices.remove(neighbor)
                 
-                # Si le voisin avait un degré impair, il a maintenant un degré pair:
-                # on l'enlève donc de la liste wrongVertices
-                if graph.listeSommets[index].getDegre()%2 == 0:
-                        wrongVertices.remove(graph.listeSommets[index])
-
+        else:
+			# If there isn't such a vertex, consider the vertices with an even degree not linked with Vertex
+            possiblesVertices = list(filter(lambda v:v.id not in vertex.adjacency and v.id != vertex.id and v.getDegree() < graph.size-2, graph.verticesList))
+            
+            # If there is such a vertex, create an edge between Vertex and this neighbor and add it to oddDegreeVertices (because it now has an odd degree)
+            if possiblesVertices != []:
+                neighbor = possiblesVertices[0]
+                oddDegreeVertices.append(neighbor)
+                graph.addEdge(vertex.id, neighbor.id)
+            
+            # If none of these vertices can be linked, it means that edges have to be removed instead of added (with priority on neighbors with an odd degree)
             else:
-                voisin = choix[0]
-                wrongVertices.append(voisin)
-                graph.addEdge(vertex.id, voisin.id, True)
-	
-        if vertex.getDegre() == 1:
-            wrongVertices.append(vertex)
+                print(vertex.id, vertex.adjacency, graph.verticesList)
+                for v in graph.verticesList:
+                    print(str(v) + " : " + ", ".join(map(str, v.adjacency)))
+                index = sorted(vertex.adjacency, key = lambda v:graph.verticesList[v].getDegree()%2 == 0)[0]
+                indNeighbor = vertex.adjacency.index(index)
+                indVertex = graph.verticesList[index].adjacency.index(vertex.id)
+                
+                # Remove the neighbor from the adjacency list of Vertex
+                vertex.adjacency.pop(indNeighbor)
+                vertex.edges.pop(indNeighbor)
+                
+                # Remove Vertex from the adjacency list of the neighbor
+                graph.verticesList[index].adjacency.pop(indVertex)
+                graph.verticesList[index].edges.pop(indVertex)
+                
+                # If the neighbor had an odd degree, it now has an even degree so it has to be removed from oddDegreeVertices
+                if graph.verticesList[index].getDegree()%2 == 0:
+                        oddDegreeVertices.remove(graph.verticesList[index])
+
+        # If vertex had a degree 0, it must remain in oddDegreeVertices
+        if vertex.getDegree() == 1:
+            oddDegreeVertices.append(vertex)
 
 
-def affiche(graph):
-    """Affiche un graphe"""
-    canvas.delete("all")
-    graph.drawGraph()
 
+###############################################################################################################
+# Example
 
-g = createGraph(100, 0.125)
-print("The graph is connex : ", g.isConnex())
-print("The graph has an Eulerian tour : ", g.existeTour())
-#for v in g.listeSommets:
-#    print str(v) + " : " + ", ".join(map(str, v.adjacence))
-if not g.existeTour():
+g = createGraph(35, 0.125)
+print("The graph is connected : ", g.isConnected())
+print("The graph has an Eulerian tour : ", g.existsTour())
+
+for v in g.verticesList:
+    print(str(v) + " : " + ", ".join(map(str, v.adjacency)))
+
+if not g.existsTour():
     makeEulerian(g)
-print("After modification , the graph has an Eulerian tour : ", g.existeTour())
-#for v in g.listeSommets:
-#    print(str(v) + " : " + ", ".join(map(str, v.adjacence)))
-chemin = g.findEulerianTour()
-print(chemin)
-print("Taille du chemin : ", len(chemin))
-print("Nombre de edges :", sum([v.getDegre() for v in g.listeSommets])//2)
+
+print("After modification , the graph has an Eulerian tour : ", g.existsTour())
+for v in g.verticesList:
+    print(str(v) + " : " + ", ".join(map(str, v.adjacency)))
+
+way = g.findEulerianTour()
+print(way)
+
+print("Size of the tour : ", len(way)-1)
+print("Number of edges :", sum([v.getDegree() for v in g.verticesList])//2)
 
 
 
@@ -273,49 +330,51 @@ indice = 0
 tour = []
 
 def maj(graph):
-    """Mets à jour le tkinter"""
+    """Update the tkinter"""
 
-    canvas.delete("all")
     graph.drawGraph()
-    connex.config(text = "Connexité : " + str(graph.isConnex()))
-    eulerien.config(text = "Eulerien : " + str(graph.existeTour()))
+    connected.config(text = "Connected : " + str(graph.isConnected()), fg = "green" if graph.isConnected() else "red")
+    eulerian.config(text = "Eulerian : " + str(graph.existsTour()), fg = "green" if graph.existsTour() else "red")
 
 def generate():
-    """Génère un nouveau graphe aléatoire et l'affiche"""
+    """Generates a new random graph and displays it"""
     global graph
 
-    n = int(entryVertices.get())
-    p = float(entryProba.get())
-    graph = Graph(p)
-    graph.addVertex(n)
-    for i in range(n):
-        for j in range(i+1, n):
-            graph.addEdge(i, j)
-    maj(graph)
-    nextEdgeEuler.grid_remove()
-    drawEulerTour.grid(row = 3, column = 5, columnspan = 6)
+    try:
+        n = int(entryVertices.get())
+        p = float(entryProba.get())
+        assert(2 < n and 0 <= p <= 1)
+        action.grid_remove()
+        graph = createGraph(n, p)
+        maj(graph)
+        nextEdgeEuler.grid_remove()
+        drawEulerTour.grid(row = 4, column = 5, columnspan = 6)
+    
+    except (ValueError, AssertionError):
+        action.grid(row = 3, column = 5, columnspan = 2)
 
 
 def makeEuler():
-    """Modifie un graphe pour le rendre Eulerien"""
+    """Modify a graph to make it eulerian"""
     global graph
 
-    makeEulerian(graph)
-    maj(graph)
+    if type(graph) == Graph and 2 < graph.size:
+        makeEulerian(graph)
+        maj(graph)
 
 
 def drawEuler():
-    """Affiche un tour eulerien"""
+    """Display an Euler tour"""
     global graph, itera, tour
 
     tour = graph.findEulerianTour()
     drawEulerTour.grid_remove()
-    nextEdgeEuler.grid(row = 3, column = 5, columnspan = 2)
+    nextEdgeEuler.grid(row = 4, column = 5, columnspan = 2)
     itera = nextEuler(tour)
 
 
 def nextEuler(tour):
-    """Affiche le prochain edge du tour d'Euler"""
+    """Display the next edge of tour"""
     global graph
 
     for i in range(len(tour)-1):
@@ -333,17 +392,17 @@ def nextEulerEnd():
         next(itera)
     except StopIteration:
         nextEdgeEuler.grid_remove()
-        drawEulerTour.grid(row = 3, column = 5, columnspan = 2)
+        drawEulerTour.grid(row = 4, column = 5, columnspan = 2)
 
 
 canvas = Canvas(fenetre, width = larg, height = haut, bg = "white")
-canvas.grid(row = 2, column = 1, rowspan = 2, columnspan = 4)
+canvas.grid(row = 2, column = 1, rowspan = 3, columnspan = 4)
 
-connex = Label(fenetre, text = "Connexité")
-connex.grid(row = 4, column = 3)
+connected = Label(fenetre, text = "Connected")
+connected.grid(row = 5, column = 3)
 
-eulerien = Label(fenetre, text = "Eulerien")
-eulerien.grid(row = 4, column = 2)
+eulerian = Label(fenetre, text = "Eulerian")
+eulerian.grid(row = 5, column = 2)
 
 vertices = Label(fenetre, text = "Number of vertices")
 vertices.grid(row = 1, column = 1, sticky = E)
@@ -357,13 +416,18 @@ entryVertices.grid(row = 1, column = 2)
 entryProba = Entry(fenetre)
 entryProba.grid(row = 1, column = 4)
 
+action = Label(fenetre, text = "Enter a valid number of vertices\nand a valid probability", bg = "red")
+action.grid(row = 3, column = 5, columnspan = 2)
+
 new_graph = Button(fenetre, text = "Generate a new graph", command = generate)
-new_graph.grid(row = 2, column = 5)
+new_graph.grid(row = 2, column = 5, sticky = S)
 
 make_euler = Button(fenetre, text = "Make the graph Eulerian", command = makeEuler)
-make_euler.grid(row = 2, column = 6)
+make_euler.grid(row = 2, column = 6, sticky = S)
 
 drawEulerTour = Button(fenetre, text = "Draw an Eulerian tour", command = drawEuler)
-drawEulerTour.grid(row = 3, column = 5, columnspan = 2)
+drawEulerTour.grid(row = 4, column = 5, columnspan = 2)
 
 nextEdgeEuler = Button(fenetre, text = "Next", command = nextEulerEnd)
+
+fenetre.mainloop()
